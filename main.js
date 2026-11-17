@@ -959,4 +959,159 @@ return;
 lastCommTime = now;
 commList.insertBefore(addCommEl(chName, txt, 0), commList.firstChild);
 commInp.value = '';
+};var stC = document.createElement('style');
+stC.innerText = '.comm-tabs { display: flex; gap: 6px; margin: 12px 0; } .comm-tab { flex: 1; padding: 10px; border: 3px solid #000; border-radius: 12px; font-weight: bold; background: #e0e0e0; color: #000; } body.dark .comm-tab { border-color: #fff; background: #2c2c2c; color: #fff; } .comm-tab.act { background: #0026ff; color: #fff; } .post-pic { width: 100%; max-height: 240px; object-fit: cover; border: 2px solid #000; border-radius: 10px; margin: 8px 0; } body.dark .post-pic { border-color: #fff; }';
+document.head.appendChild(stC);
+
+var cPosts = JSON.parse(localStorage.getItem('oleg_posts_v1') || '[{"id":1,"text":"Привет, Олегончане! Теперь у нас есть вкладка Сообщество прямо в профиле!","img":"","likes":15,"dislikes":0,"date":"Сегодня","comments":[{"author":"Пацан_2007","text":"Топ обнова!"}]}]');
+function saveCP() { localStorage.setItem('oleg_posts_v1', JSON.stringify(cPosts)); }
+
+var cTabs = el('div', 'comm-tabs');
+var btnTV = el('button', 'comm-tab act', '🎬 Видео');
+var btnTC = el('button', 'comm-tab', '💬 Сообщество');
+cTabs.appendChild(btnTV);
+cTabs.appendChild(btnTC);
+
+var cArea = el('div');
+cArea.style.display = 'none';
+var cForm = el('div', 'card');
+cForm.appendChild(el('b', '', 'Написать пост для Олегончан:'));
+var cTxt = el('textarea', 'inp-full');
+cTxt.rows = 3;
+cTxt.placeholder = 'Поделитесь новостью или мемом...';
+var cImg = el('input', 'inp-full');
+cImg.type = 'file';
+cImg.accept = 'image/*';
+var cPub = el('button', 'btn', 'Опубликовать пост');
+cPub.style.width = '100%';
+cForm.appendChild(cTxt);
+cForm.appendChild(cImg);
+cForm.appendChild(cPub);
+
+var cFeed = el('div');
+cArea.appendChild(cForm);
+cArea.appendChild(cFeed);
+
+profScreen.insertBefore(cTabs, profVideosHead);
+profScreen.appendChild(cArea);
+
+function drawPosts() {
+  cFeed.innerHTML = '';
+  cPosts.forEach(function(p, idx) {
+    var card = el('div', 'card');
+    var top = el('div');
+    top.style.display = 'flex';
+    top.style.justifyContent = 'space-between';
+    top.style.alignItems = 'center';
+    top.appendChild(el('b', '', chName + ' • ' + (p.date || 'Сегодня')));
+    var del = el('button', 'btn-del', 'Удалить');
+    del.style.padding = '3px 8px';
+    del.style.fontSize = '11px';
+    del.onclick = function() {
+      if (confirm('Удалить пост?')) { cPosts.splice(idx, 1); saveCP(); drawPosts(); }
+    };
+    top.appendChild(del);
+    card.appendChild(top);
+
+    var txt = el('p', '', p.text);
+    txt.style.margin = '6px 0';
+    card.appendChild(txt);
+
+    if (p.img) {
+      var im = el('img', 'post-pic');
+      im.src = p.img;
+      card.appendChild(im);
+    }
+
+    var bar = el('div');
+    var bL = el('button', 'btn', '👍 ' + (p.likes || 0));
+    bL.style.padding = '5px 10px';
+    bL.onclick = function() { p.likes = (p.likes || 0) + 1; saveCP(); drawPosts(); };
+    var bD = el('button', 'btn', '👎 ' + (p.dislikes || 0));
+    bD.style.padding = '5px 10px';
+    bD.style.background = '#555';
+    bD.onclick = function() { p.dislikes = (p.dislikes || 0) + 1; saveCP(); drawPosts(); };
+    bar.appendChild(bL);
+    bar.appendChild(bD);
+    card.appendChild(bar);
+
+    var cw = el('div');
+    cw.style.marginTop = '8px';
+    cw.style.borderTop = '1px solid #888';
+    cw.style.paddingTop = '6px';
+    var r = el('div');
+    r.style.display = 'flex';
+    r.style.gap = '5px';
+    var inp = el('input');
+    inp.placeholder = 'Комментарий к посту...';
+    inp.style.flex = '1';
+    inp.style.padding = '6px';
+    inp.style.border = '2px solid #000';
+    inp.style.borderRadius = '8px';
+    var ok = el('button', 'btn', 'Ок');
+    ok.style.padding = '6px 10px';
+    ok.onclick = function() {
+      var v = inp.value.trim();
+      if (!v) return;
+      var err = checkModeration(v);
+      if (err) { alert(err); return; }
+      if (!p.comments) p.comments = [];
+      p.comments.unshift({ author: chName, text: v });
+      saveCP();
+      drawPosts();
+    };
+    r.appendChild(inp);
+    r.appendChild(ok);
+    cw.appendChild(r);
+
+    if (p.comments) {
+      p.comments.forEach(function(cm) {
+        var ln = el('div');
+        ln.style.fontSize = '13px';
+        ln.style.marginTop = '4px';
+        ln.appendChild(el('b', '', cm.author + ': '));
+        ln.appendChild(el('span', '', cm.text));
+        cw.appendChild(ln);
+      });
+    }
+    card.appendChild(cw);
+    cFeed.appendChild(card);
+  });
+}
+
+cPub.onclick = function() {
+  var t = cTxt.value.trim();
+  var f = cImg.files.item(0);
+  if (!t && !f) { alert('Напишите текст или выберите фото!'); return; }
+  var err = checkModeration(t);
+  if (err) { alert(err); return; }
+  function fin(imgU) {
+    cPosts.unshift({ id: Date.now(), text: t, img: imgU || '', likes: 1, dislikes: 0, date: 'Только что', comments: [] });
+    saveCP();
+    cTxt.value = '';
+    cImg.value = '';
+    drawPosts();
+  }
+  if (f) {
+    var rd = new FileReader();
+    rd.onload = function(e) { fin(e.target.result); };
+    rd.readAsDataURL(f);
+  } else fin('');
+};
+
+btnTV.onclick = function() {
+  btnTV.classList.add('act');
+  btnTC.classList.remove('act');
+  profVideosHead.style.display = 'block';
+  profVideosList.style.display = 'block';
+  cArea.style.display = 'none';
+};
+
+btnTC.onclick = function() {
+  btnTC.classList.add('act');
+  btnTV.classList.remove('act');
+  profVideosHead.style.display = 'none';
+  profVideosList.style.display = 'none';
+  cArea.style.display = 'block';
+  drawPosts();
 };

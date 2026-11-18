@@ -1115,3 +1115,215 @@ btnTC.onclick = function() {
   cArea.style.display = 'block';
   drawPosts();
 };
+var accs = JSON.parse(localStorage.getItem('oleg_accounts_v1') || '[]');
+var curAcc = JSON.parse(localStorage.getItem('oleg_cur_acc') || 'null');
+
+if (accs.length === 0 && localStorage.getItem('oleg_chan_name')) {
+  var migrated = {
+    login: localStorage.getItem('oleg_chan_name'),
+    pass: '2007',
+    desc: localStorage.getItem('oleg_chan_desc') || 'Всем привет, Олегончане!',
+    color: localStorage.getItem('oleg_chan_color') || '#ff5722',
+    img: localStorage.getItem('oleg_chan_img') || ''
+  };
+  accs.push(migrated);
+  localStorage.setItem('oleg_accounts_v1', JSON.stringify(accs));
+}
+
+function saveAccs() {
+  localStorage.setItem('oleg_accounts_v1', JSON.stringify(accs));
+  localStorage.setItem('oleg_cur_acc', JSON.stringify(curAcc));
+}
+
+var authBanner = el('div', 'card');
+authBanner.style.background = '#e8eeff';
+authBanner.style.borderColor = '#0026ff';
+var authBannerTitle = el('b', '', '👤 Вы не вошли в аккаунт Олег ID');
+authBannerTitle.style.display = 'block';
+authBannerTitle.style.marginBottom = '6px';
+authBannerTitle.style.color = '#000';
+var authBtnRow = el('div');
+authBtnRow.style.display = 'flex';
+authBtnRow.style.gap = '6px';
+var btnOpenReg = el('button', 'btn', 'Создать аккаунт');
+btnOpenReg.style.flex = '1';
+var btnOpenLog = el('button', 'btn', 'Войти');
+btnOpenLog.style.flex = '1';
+btnOpenLog.style.background = '#4caf50';
+authBtnRow.appendChild(btnOpenReg);
+authBtnRow.appendChild(btnOpenLog);
+authBanner.appendChild(authBannerTitle);
+authBanner.appendChild(authBtnRow);
+
+homeScreen.insertBefore(authBanner, homeScreen.firstChild);
+
+var authModal = el('div', 'modal-bg');
+var authBox = el('div', 'modal-box');
+var authModalHead = el('h2', '', 'Создать аккаунт Олег');
+var authMode = 'reg';
+var authSubTxt = el('p', '', 'Придумайте имя канала и пароль:');
+authSubTxt.style.fontSize = '13px';
+var authLoginInp = el('input', 'inp-full');
+authLoginInp.placeholder = 'Имя канала (например: Олег_2007)';
+var authPassInp = el('input', 'inp-full');
+authPassInp.type = 'password';
+authPassInp.placeholder = 'Пароль';
+var savedAccsBox = el('div');
+savedAccsBox.style.marginBottom = '8px';
+
+var btnAuthSubmit = el('button', 'btn', 'Готово');
+btnAuthSubmit.style.width = '100%';
+var btnAuthCancel = el('button', 'btn', 'Отмена');
+btnAuthCancel.style.width = '100%';
+btnAuthCancel.style.background = '#555';
+
+authBox.appendChild(authModalHead);
+authBox.appendChild(authSubTxt);
+authBox.appendChild(savedAccsBox);
+authBox.appendChild(authLoginInp);
+authBox.appendChild(authPassInp);
+authBox.appendChild(btnAuthSubmit);
+authBox.appendChild(btnAuthCancel);
+authModal.appendChild(authBox);
+document.body.appendChild(authModal);
+
+var profAccCard = el('div', 'card');
+var profAccStatus = el('b', '', 'Аккаунт: Гость (не выполнен вход)');
+profAccStatus.style.display = 'block';
+profAccStatus.style.marginBottom = '8px';
+var btnProfNewAcc = el('button', 'btn', '+ Создать новый аккаунт');
+btnProfNewAcc.style.width = '100%';
+btnProfNewAcc.style.background = '#4caf50';
+var btnProfSwitchAcc = el('button', 'btn', 'Сменить / Войти в аккаунт');
+btnProfSwitchAcc.style.width = '100%';
+var btnProfLogout = el('button', 'btn-del', 'Выйти из аккаунта');
+btnProfLogout.style.width = '100%';
+
+profAccCard.appendChild(profAccStatus);
+profAccCard.appendChild(btnProfNewAcc);
+profAccCard.appendChild(btnProfSwitchAcc);
+profAccCard.appendChild(btnProfLogout);
+profScreen.insertBefore(profAccCard, pCard.nextSibling);
+
+function syncAccountUI() {
+  if (curAcc) {
+    authBanner.style.display = 'none';
+    chName = curAcc.login;
+    chDesc = curAcc.desc || 'Всем привет, Олегончане!';
+    chColor = curAcc.color || '#0026ff';
+    chImg = curAcc.img || '';
+    localStorage.setItem('oleg_chan_name', chName);
+    localStorage.setItem('oleg_chan_desc', chDesc);
+    localStorage.setItem('oleg_chan_color', chColor);
+    localStorage.setItem('oleg_chan_img', chImg);
+    profAccStatus.innerText = '✅ Аккаунт: ' + curAcc.login;
+    btnProfLogout.style.display = 'block';
+  } else {
+    authBanner.style.display = 'block';
+    chName = 'Гость';
+    chDesc = 'Войдите или создайте аккаунт в меню наверху!';
+    chColor = '#777777';
+    chImg = '';
+    profAccStatus.innerText = '👤 Вы сейчас Гость (войдите в аккаунт)';
+    btnProfLogout.style.display = 'none';
+  }
+  if (typeof updateProfileUI === 'function') updateProfileUI();
+  if (typeof loadVideos === 'function') loadVideos();
+  if (typeof drawPosts === 'function') drawPosts();
+}
+
+function openAuthDialog(mode) {
+  authMode = mode;
+  authLoginInp.value = '';
+  authPassInp.value = '';
+  savedAccsBox.innerHTML = '';
+  if (mode === 'reg') {
+    authModalHead.innerText = 'Создать аккаунт Олег';
+    authSubTxt.innerText = 'Придумайте имя канала и пароль:';
+    btnAuthSubmit.innerText = 'Создать и войти';
+  } else {
+    authModalHead.innerText = 'Вход в аккаунт Олег';
+    authSubTxt.innerText = 'Введите логин и пароль или выберите сохранённый:';
+    btnAuthSubmit.innerText = 'Войти';
+    if (accs.length > 0) {
+      accs.forEach(function(a) {
+        var qBtn = el('button', 'pill-btn', '⚡ Быстрый вход: ' + a.login);
+        qBtn.style.width = '100%';
+        qBtn.style.marginBottom = '5px';
+        qBtn.onclick = function() {
+          curAcc = a;
+          saveAccs();
+          syncAccountUI();
+          authModal.style.display = 'none';
+        };
+        savedAccsBox.appendChild(qBtn);
+      });
+    }
+  }
+  authModal.style.display = 'flex';
+}
+
+btnOpenReg.onclick = function() { openAuthDialog('reg'); };
+btnOpenLog.onclick = function() { openAuthDialog('login'); };
+btnProfNewAcc.onclick = function() { openAuthDialog('reg'); };
+btnProfSwitchAcc.onclick = function() { openAuthDialog('login'); };
+btnAuthCancel.onclick = function() { authModal.style.display = 'none'; };
+
+btnAuthSubmit.onclick = function() {
+  var lg = authLoginInp.value.trim();
+  var pw = authPassInp.value.trim();
+  if (!lg || !pw) { alert('Введите имя канала и пароль!'); return; }
+  if (typeof checkModeration === 'function') {
+    var err = checkModeration(lg);
+    if (err) { alert(err); return; }
+  }
+  if (authMode === 'reg') {
+    var exists = accs.some(function(x) { return x.login.toLowerCase() === lg.toLowerCase(); });
+    if (exists) { alert('Такое имя канала уже занято! Выберите другое или нажмите Войти.'); return; }
+    var newObj = { login: lg, pass: pw, desc: 'Привет, Олегончане! Мой новый канал.', color: '#0026ff', img: '' };
+    accs.push(newObj);
+    curAcc = newObj;
+    saveAccs();
+    syncAccountUI();
+    authModal.style.display = 'none';
+  } else {
+    var found = null;
+    for (var i = 0; i < accs.length; i++) {
+      if (accs[i].login.toLowerCase() === lg.toLowerCase() && accs[i].pass === pw) {
+        found = accs[i];
+        break;
+      }
+    }
+    if (!found) { alert('Неверное имя канала или пароль!'); return; }
+    curAcc = found;
+    saveAccs();
+    syncAccountUI();
+    authModal.style.display = 'none';
+  }
+};
+
+btnProfLogout.onclick = function() {
+  if (confirm('Выйти из аккаунта? Верхнее меню входа снова появится на главной.')) {
+    curAcc = null;
+    saveAccs();
+    syncAccountUI();
+    showScreen(homeScreen);
+  }
+};
+
+var oldSaveChanFn = btnSaveChan.onclick;
+btnSaveChan.onclick = function() {
+  oldSaveChanFn();
+  setTimeout(function() {
+    if (curAcc) {
+      curAcc.login = chName;
+      curAcc.desc = chDesc;
+      curAcc.color = chColor;
+      curAcc.img = chImg;
+      saveAccs();
+      syncAccountUI();
+    }
+  }, 150);
+};
+
+syncAccountUI();
